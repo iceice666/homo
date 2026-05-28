@@ -39,10 +39,9 @@
               elixir
               elixir-ls          # LSP for editors
             ]);
-            # Hex + Rebar are fetched by mix; point them at a writable cache.
-            MIX_HOME = "${builtins.getEnv "HOME"}/.mix";
             shellHook = ''
-              echo "harmony — $(elixir --version | head -1)"
+              export MIX_HOME="$HOME/.mix"
+              echo "harmony — Elixir $(elixir --short-version 2>/dev/null || echo dev) / OTP $(erl -eval 'erlang:display(erlang:system_info(otp_release)), halt().' -noshell 2>/dev/null || echo dev)"
             '';
           };
 
@@ -73,7 +72,7 @@
               dune_3
 
               # Editor tooling
-              ocamlPackages.ocaml-lsp-server
+              ocamlPackages.ocaml-lsp
               ocamlPackages.ocamlformat
               ocamlPackages.merlin
               ocamlPackages.utop
@@ -85,6 +84,7 @@
               ocamlPackages.ppx_deriving
               ocamlPackages.lambda-term   # readline-style terminal interaction
               ocamlPackages.re            # regex
+              ocamlPackages.otoml         # TOML config parser (~/.config/echo/config.toml)
             ]);
             shellHook = ''
               echo "echo — OCaml $(ocaml --version)"

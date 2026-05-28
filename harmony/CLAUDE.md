@@ -5,9 +5,11 @@ of ticket state derived from each project's git repo, watches per-project `.scor
 via git hooks, enforces WIP limits, dispatches Voice subprocesses, and exposes a real-time
 API to Aria.
 
-## Status: spec-only
+## Status: scaffolded — no logic yet
 
-No Elixir source code exists yet. All design lives in `spec/`. Write spec before code.
+Mix project is in place with Phoenix Channels endpoint, supervised OTP tree
+(TicketCache, ProjectSupervisor, Dispatcher, GitHookReceiver), and channel stubs; compiles
+cleanly. All business logic is TODO. Write spec before adding logic.
 
 ## Spec map
 

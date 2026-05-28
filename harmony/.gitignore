@@ -1,1 +1,5 @@
 .direnv
+/_build
+/deps
+*.ez
+harmony-*.tar

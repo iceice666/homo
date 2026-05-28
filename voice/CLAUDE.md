@@ -4,10 +4,10 @@ Per-ticket agent harness. Rust workspace; a single `voice` binary that reads env
 Harmony, sets up a git worktree, invokes an external CLI adapter, streams output, writes a
 structured run report, and exits.
 
-## Status: spec-only
+## Status: scaffolded — no logic yet
 
-No Rust source code exists yet — there is no `crates/` directory on disk. All design lives in
-`spec/`. Write spec before code.
+Skeleton workspace is in place (`crates/core` lib + `crates/voice` bin); module stubs compile
+cleanly. All business logic is TODO. Write spec before adding logic.
 
 ## Spec map
 

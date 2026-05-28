@@ -1,0 +1,5 @@
+(include_subdirs unqualified)
+
+(library
+ (name echo)
+ (libraries lwt cohttp-lwt-unix yojson lambda-term re otoml))

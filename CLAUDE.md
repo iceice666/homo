@@ -18,4 +18,5 @@ If you change any wire format, on-disk layout, or spawn protocol in one package,
 
 ## Status
 
-All packages are spec-only. No implementation code exists.
+All packages are scaffolded with buildable skeletons. No business logic exists yet.
+Implement specs module by module; update `CONTRACT.md` before changing any wire protocol.

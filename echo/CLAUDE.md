@@ -3,9 +3,11 @@
 Personal conversational AI companion. A readline REPL written in OCaml that wraps one or more
 AI backends and feels like Pi — warm, stateful, always-on — while living fully in the terminal.
 
-## Status: spec-only
+## Status: scaffolded — no logic yet
 
-No OCaml source exists yet. All design lives in `spec/`. Write spec before code.
+Dune project is in place with `bin/main.ml` (subcommand dispatch), `lib/{message,session,
+config,repl}.ml`, and `lib/backend/{backend_intf,registry,claude_cli,claude_api,openai,
+custom}.ml`; compiles cleanly. All backend logic is TODO. Write spec before adding logic.
 
 ## Spec map
 

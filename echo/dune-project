@@ -1,0 +1,16 @@
+(lang dune 3.16)
+(generate_opam_files true)
+
+(package
+ (name echo)
+ (synopsis "Personal conversational AI companion — terminal REPL")
+ (depends
+  (ocaml (>= 5.1))
+  dune
+  lwt
+  cohttp-lwt-unix
+  yojson
+  lambda-term
+  re
+  otoml
+  ppx_deriving))

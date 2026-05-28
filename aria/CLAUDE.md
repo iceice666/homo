@@ -4,9 +4,13 @@ Desktop UI for the homo system. Aria is a thin viewer and driver over Harmony �
 lives in the state manager; Aria only displays state and forwards user intent. Two parallel
 native implementations: SwiftUI on macOS, GTK 4 + Relm4 on Linux.
 
-## Status: spec-only
+## Status: macOS scaffolded — Linux spec-only — no logic yet
 
-No implementation code exists yet. All design lives in `spec/`. Write spec before code.
+`aria/macos/` is a Swift Package Manager skeleton (Swift 6, macOS 15+) with `AriaApp`,
+`ContentView` (board columns), `Model` (MVU types), `HarmonyClient` (WebSocket stub), and
+`Types/Ticket`. No logic; compiles cleanly.
+
+`aria/linux/` is not yet scaffolded — bootstrap order is still deferred (see spec).
 
 ## Spec map
 
@@ -30,8 +34,18 @@ aria/
   spec/     # shared design — no code
 ```
 
-Neither codebase is scaffolded yet. Finalise the spec before starting either; bootstrap order
-(macOS vs Linux first) is deferred.
+`aria/macos/` is scaffolded (SPM). `aria/linux/` is not yet scaffolded.
+
+## Build (macOS)
+
+```sh
+# from aria/macos/
+swift build
+```
+
+The root `.envrc` loads `.env` (gitignored, machine-local) after `use flake`, which sets
+`DEVELOPER_DIR` and `SDKROOT` to the Xcode SDK. This overrides the Nix-provided macOS SDK
+that `use flake` injects and is incompatible with the system Swift 6.x compiler.
 
 ## Key constraints
 

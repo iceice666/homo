@@ -1,6 +1,6 @@
 # Voice
 
-The per-ticket agent harness for the **homo** system. Written in Rust.
+The per-ticket agent harness for the **Partitura** system. Written in Rust.
 
 One Voice invocation = one external-CLI run against one isolated git worktree. Harmony spawns
 the `voice` binary as a subprocess when a ticket is dispatched. Voice sets up the workspace,
@@ -22,9 +22,9 @@ crates/
 All design is in [`spec/`](spec/), and the Harmony↔Voice spawn protocol is in
 [`../CONTRACT.md`](../CONTRACT.md). No implementation code exists yet.
 
-## Part of homo
+## Part of Partitura
 
-One of four packages in the **homo** system. Voice is the agent harness —
+One of four packages in the **Partitura** system. Voice is the agent harness —
 [`harmony`](../harmony/) (the Elixir/OTP state manager) spawns it per ticket, and
 [`aria`](../aria/) (the desktop UI) shows the run reports it writes. [`echo`](../echo/) is a
 standalone companion REPL, not part of this loop.

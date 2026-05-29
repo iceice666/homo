@@ -1,5 +1,5 @@
 {
-  description = "homo — Aria · Harmony · Voice · Echo dev environments";
+  description = "Partitura — Aria · Harmony · Voice · Echo dev environments";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -22,7 +22,7 @@
           default = pkgs.mkShell {
             packages = commonTools;
             shellHook = ''
-              echo "homo — four-package dev environment"
+              echo "Partitura — four-package dev environment"
               echo ""
               echo "  nix develop .#harmony   Elixir/OTP state manager"
               echo "  nix develop .#voice     Rust agent harness"

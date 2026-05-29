@@ -1,6 +1,6 @@
 # harmony — Claude guidance
 
-Elixir/OTP git-native cache daemon for the homo system. Harmony maintains a real-time cache
+Elixir/OTP git-native cache daemon for the Partitura system. Harmony maintains a real-time cache
 of ticket state derived from each project's git repo, watches per-project `.score/` directories
 via git hooks, enforces WIP limits, dispatches Voice subprocesses, and exposes a real-time
 API to Aria.

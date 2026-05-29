@@ -1,6 +1,6 @@
 # aria — Claude guidance
 
-Desktop UI for the homo system. Aria is a thin viewer and driver over Harmony — all logic
+Desktop UI for the Partitura system. Aria is a thin viewer and driver over Harmony — all logic
 lives in the state manager; Aria only displays state and forwards user intent. Two parallel
 native implementations: SwiftUI on macOS, GTK 4 + Relm4 on Linux.
 

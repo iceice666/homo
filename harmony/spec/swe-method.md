@@ -1,6 +1,6 @@
 # Harmony — Workflow Method
 
-The homo system blends four methods into one coherent flow. No single method is enforced in
+The Partitura system blends four methods into one coherent flow. No single method is enforced in
 full — each contributes one principle that fits solo-dev-with-agents work.
 
 ---

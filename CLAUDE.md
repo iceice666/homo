@@ -1,4 +1,4 @@
-# homo — repo guidance
+# Partitura — repo guidance
 
 Four independent packages. No monorepo manifest at the root.
 Do not run build or test commands from here — cd into the relevant package first.

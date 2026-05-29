@@ -2,7 +2,7 @@
 
 ## What Harmony is
 
-Harmony is a local Elixir/OTP daemon that acts as the engine behind the homo system. It:
+Harmony is a local Elixir/OTP daemon that acts as the engine behind the Partitura system. It:
 
 - Maintains a real-time **cache** of ticket state derived from each registered project's git repo.
 - Enforces WIP limits and the two-layer state model (git-committed state + ephemeral run state).

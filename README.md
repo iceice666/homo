@@ -1,4 +1,4 @@
-# homo
+# Partitura
 
 Personal sandbox. Four packages, all spec-phase.
 

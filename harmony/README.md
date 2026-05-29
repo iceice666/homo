@@ -20,9 +20,9 @@ recovery commit. Harmony holds no authoritative state of its own.
 
 All design is in [`spec/`](spec/). No implementation code exists yet.
 
-## Part of homo
+## Part of Partitura
 
-One of four packages in the **homo** system. Harmony is the state manager at the centre —
+One of four packages in the **Partitura** system. Harmony is the state manager at the centre —
 [`aria`](../aria/) (the desktop UI) connects to it, and it dispatches [`voice`](../voice/)
 (the agent harness) per ticket. [`echo`](../echo/) is a standalone companion REPL, not part of
 this loop.

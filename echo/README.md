@@ -22,9 +22,9 @@ You: _
 
 All design is in [`spec/`](spec/). No implementation code exists yet.
 
-## Part of homo
+## Part of Partitura
 
-One of four packages in the **homo** system, alongside [`aria`](../aria/) (desktop UI),
+One of four packages in the **Partitura** system, alongside [`aria`](../aria/) (desktop UI),
 [`harmony`](../harmony/) (state manager), and [`voice`](../voice/) (agent harness). Unlike
 those three, `echo` is standalone — it does not talk to Harmony and runs on its own.
 

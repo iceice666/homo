@@ -1,6 +1,6 @@
 # Aria
 
-The desktop UI for the **homo** system. Aria is your window into project state — a board of
+The desktop UI for the **Partitura** system. Aria is your window into project state — a board of
 tickets, a run-report panel when an agent finishes, and a live runtimes inventory showing
 which CLI agents are detected on this machine.
 
@@ -18,9 +18,9 @@ renders what Harmony reports and forwards user intent.
 
 All design is in [`spec/`](spec/). No implementation code exists yet.
 
-## Part of homo
+## Part of Partitura
 
-One of four packages in the **homo** system. Aria is the UI layer — it talks to
+One of four packages in the **Partitura** system. Aria is the UI layer — it talks to
 [`harmony`](../harmony/) (the Elixir/OTP state manager), which dispatches [`voice`](../voice/)
 (the agent harness). [`echo`](../echo/) is a standalone companion REPL, not part of this loop.
 

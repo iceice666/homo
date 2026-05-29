@@ -3,7 +3,7 @@
 ## What echo is
 
 Echo is a personal conversational AI companion that runs as a readline REPL in the terminal.
-It is the homo project's answer to Pi: a warm, stateful, always-available AI that you talk to
+It is the Partitura project's answer to Pi: a warm, stateful, always-available AI that you talk to
 across sessions rather than in one-off prompts.
 
 Echo is **not** an agent harness (that is `voice`). It does not manage tickets, spawn

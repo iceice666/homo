@@ -2,7 +2,7 @@
 
 ## What Aria is
 
-Aria is the desktop front-end for the homo system. It gives you a visual, interactive view of
+Aria is the desktop front-end for the Partitura system. It gives you a visual, interactive view of
 your project state: a Kanban board of tickets, ticket detail with spec and run history, a
 run-report panel when an agent finishes, and a runtimes inventory showing which CLI agents are
 available on this machine.

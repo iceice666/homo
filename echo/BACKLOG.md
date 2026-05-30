@@ -1,0 +1,55 @@
+# echo — Backlog & Open Questions
+
+Running list of unresolved questions and deferred work for `echo`, so they aren't lost
+between changes. **Plain file — edit directly, not an OpenSpec artifact.**
+
+Much of this came out of the pi-ai alignment exploration; rationale for the decisions that
+spawned these lives in `openspec/changes/align-echo-with-pi-ai/design.md`.
+
+_Last updated: 2026-05-30._
+
+## Open questions (need a decision)
+
+- [ ] **OpenAI Responses signature replay** — Does the Responses API require replaying
+  signatures on text/reasoning items for multi-turn correctness? Decides whether
+  `textSignature` is strictly v1 or just defensive. echo hits Responses via *both* `OpenAI`
+  and `OpenAiChatGpt`. → verify against current Responses docs. _(design.md Q1; tasks.md 1.3)_
+- [ ] **Generated model-registry source** — Vendored snapshot vs a live fetch step for the
+  `MODELS` pricing/limits table? What regeneration cadence? _(design.md Q2; tasks.md 1.8)_
+- [ ] **Primary v1 runtime: dev laptop vs deployed daemon** — Shapes the deferred sops design
+  (personal ssh/age key vs host key) and token-store assumptions. _(design.md Q3)_
+- [ ] **`cacheRetention` as an Option?** — pi-ai exposes `none|short|long`; echo left Anthropic
+  caching implicit for v1. Decide whether to surface the knob.
+- [ ] **`AssistantMessage.timestamp`** — pi-ai stamps every message; echo is stateless. Keep it
+  (useful for voice's history) or drop?
+
+## Deferred work — after the spec change lands
+
+- [ ] **Rust rescaffold** — Cargo workspace (`crates/core` = lib `echo`, `crates/cli` = bin
+  `echo`); delete the OCaml/dune tree. First implementation change; specs gate it. _(echo/CLAUDE.md)_
+- [ ] **Implement v1 providers** — Anthropic (`anthropic-messages`), OpenAI
+  (`openai-responses`/`completions`), OpenAiChatGpt (`openai-codex-responses`, OAuth) adapters +
+  streaming → event-union mapping.
+- [ ] **Implement the CLI** — `run` (one-shot Context→JSONL), `repl`, `login`/`logout`,
+  `providers`, `config show`.
+- [ ] **Keep `score.echo-event/v1` JSONL faithful to the Rust event union** — decide generated
+  vs hand-maintained; drift is silent and corrosive. _(CONTRACT.md)_
+
+## Deferred features — explicitly out of v1 scope
+
+- [ ] **sops-encrypted secrets rung + `echo secret-edit`** — the "echo decrypts" model (Model b).
+  Considered, deferred; v1 is env-first. Note: sops makes encrypted secrets git/Nix-committable.
+  _(config.md deferred; design.md D7)_
+- [ ] **Anthropic subscription OAuth** (Claude Pro/Max) — symmetric to OpenAiChatGpt; trivial once
+  the OAuth/token-store machinery exists. _(providers.md deferred)_
+- [ ] **Deferred providers** — DeepSeek + local/OpenAI-compatible (Ollama/vLLM/LM Studio) via
+  `Custom{base_url}`; Google/Vertex, Mistral, Bedrock, OpenRouter. Slot in via Api×Provider +
+  compat flags, not new adapters.
+
+## Watch-outs / invariants to keep
+
+- **URL-image SSRF** — the Anthropic adapter fetches URL images → enforce timeout + max size;
+  consider an allowlist. URLs originate in voice's tool results. _(design.md D3)_
+- **Secrets never logged** — env-first; `config show` redacts; token store `chmod 600`. _(config.md)_
+- **No agent logic in echo** — no loop, tools, MCP, prompt assembly, or persistence. A `tool_call`
+  event ends echo's involvement.

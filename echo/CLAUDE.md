@@ -19,6 +19,8 @@ No Rust source exists yet. All design lives in `spec/`. Write spec before code.
 | `spec/cli.md` | The thin CLI: one-shot (`Context` JSON → JSONL events) and the test REPL |
 | `spec/config.md` | Config file, env vars, OAuth token store |
 
+See also [`BACKLOG.md`](BACKLOG.md) — open questions and deferred work (plain checklist, not a spec).
+
 ## Package layout (planned — Rust)
 
 ```

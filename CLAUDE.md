@@ -18,6 +18,15 @@ The canonical interface between `aria`, `harmony`, `voice`, and the `echo` libra
 `CONTRACT.md` (repo root). If you change any wire format, on-disk layout, spawn protocol, or
 the `voice`↔`echo` API in one package, update `CONTRACT.md` first.
 
+## OpenSpec workflow
+
+Changes are managed with OpenSpec (`openspec/`, schema `spec-driven`):
+
+- **One commit per new change.** Creating a change (proposal + design + specs + tasks under
+  `openspec/changes/<name>/`) lands as a single commit, before any implementation.
+- **Apply in a worktree.** When implementing a change (`/opsx:apply`), create a fresh git
+  worktree for it and do the work there, keeping the main checkout clean.
+
 ## Status
 
 All packages are spec-only. No implementation code exists.

@@ -18,9 +18,14 @@ No Rust source code exists yet — there is no `crates/` directory on disk. All 
 | `spec/overview.md` | What Voice is, scope, non-goals, language rationale |
 | `spec/protocol.md` | Spawn contract: env vars, progress stream, exit codes, signalling |
 | `spec/roles.md` | Consuming the role manifest; runtime context assembly |
+| `spec/system-prompt.md` | Minimal base prompt + Voice's harness addendum (built-ins, off-ramp policy) |
 | `spec/agent-loop.md` | The native loop: echo calls, MCP tool execution, built-in signals |
+| `spec/mcp-bridge.md` | MCP↔echo bridge: server lifecycle, batch tool execution, content mapping |
+| `spec/failure-contract.md` | Compaction, handoff digest, and the per-branch exit/failure contract |
 | `spec/workspace.md` | Git worktree setup, cleanup, cwd-pin invariant |
 | `spec/report.md` | Run report JSON schema written on exit |
+
+See also [`BACKLOG.md`](BACKLOG.md) — open questions and v2-deferred work (plain checklist, not a spec).
 
 ## Package layout (planned)
 

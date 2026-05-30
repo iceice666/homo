@@ -40,6 +40,7 @@ worktree or the ticket:
 | `system_prompt` | manifest | base system content |
 | `skill.body` | manifest | appended system content |
 | `AGENTS.md` / `CLAUDE.md` | repo root in `VOICE_WORKSPACE` | appended system content |
+| harness addendum | Voice (fixed) | appended system content, **last** — built-in / commit / stop / budget protocol (`system-prompt.md`) |
 | ticket request | `VOICE_TICKET_PATH` (`spec.*`, `pitch`, `notes`) | first user message |
 | `model` | manifest | the `echo` target |
 | `tools` | manifest `mcp_servers` + built-ins | `echo` `Tool` schemas |
@@ -63,6 +64,12 @@ torn down when the run ends.
 
 ## Skills, not pipelines
 
-A role references at most one skill (`skill.body`). There is no executor/verifier pipeline
-split — a single dispatched agent does the work and the human reviews. `verify` is just another
-role/skill, dispatched like any other.
+A role references at most one skill (`skill.body`). **Within Voice** there is no
+executor/verifier pipeline split — a single dispatched agent does the work; Voice runs one agent
+per process. `verify` is just another role/skill, dispatched like any other.
+
+Review may be done by a **verifier role and/or a human**. An automated execute→verify cycle — an
+executor dispatch, then a verifier dispatch whose findings feed `spec.rework_notes` and
+re-dispatch the executor — is **orchestrated by Harmony across dispatches**, not a Voice-internal
+pipeline (see `harmony/spec/state-model.md`). Voice's only part is emitting a structured verdict
+on a verifier run (`report.md`).

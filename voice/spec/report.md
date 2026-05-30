@@ -65,6 +65,7 @@ Written as JSON. All top-level fields except `notes`, `evidence`,
 | `exit_reason` | string | yes | `completed` · `failed` · `hard-abort` · `infeasible` · `needs-input` · `cancelled` |
 | `questions` | array | conditional | **Required** when `exit_reason` is `needs-input`. See below. |
 | `infeasibility` | object | conditional | **Required** when `exit_reason` is `infeasible`. See below. |
+| `verdict` | object | conditional | Present on a **verifier-role** run: structured pass/fail + findings. See below. |
 | `started_at` | ISO 8601 | yes | When Voice started |
 | `finished_at` | ISO 8601 | yes | When Voice exited |
 | `duration_seconds` | int | yes | Wall-clock seconds |
@@ -137,6 +138,39 @@ When the agent concludes the spec cannot be built as written, the report carries
 | `reason` | string | yes | Why the spec is not buildable as written |
 | `missing_prerequisites` | array | no | Ticket ids / slugs that would need to exist first |
 | `suggested_spec_changes` | string | no | What a buildable re-shaped spec would look like |
+
+---
+
+## Verifier verdict (verification runs)
+
+A run whose role is a **verifier** carries a structured `verdict` so Harmony can branch
+mechanically (pass → done / human-final; fail → write findings to `spec.rework_notes` and
+re-dispatch the executor). The verifier does **not** replace Voice's mechanical
+`acceptance_results` — it is the judgment layer on top of them (`agent-loop.md`).
+
+```json
+{
+  "schema": "score.run-report/v1",
+  "role": "verifier",
+  "exit_reason": "completed",
+  "...": "...",
+  "verdict": {
+    "passed": false,
+    "findings": [
+      { "severity": "blocker", "detail": "Debounce is applied after render, so the 150ms minimum is not enforced on fast switches." }
+    ]
+  }
+}
+```
+
+| `verdict` field | Type | Required | Description |
+|-----------------|------|----------|-------------|
+| `passed` | bool | yes | Whether the change satisfies the spec |
+| `findings` | array | no | Issues found; each `{ severity, detail }`. Feeds `spec.rework_notes` on failure. |
+
+**Open:** how the agent *produces* the verdict (a dedicated tool, a skill output convention, or
+structured final output) and the execute→verify loop itself are settled with Harmony's state
+machine (`harmony/spec/state-model.md`), not here.
 
 ---
 

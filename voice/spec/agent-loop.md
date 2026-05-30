@@ -14,12 +14,15 @@ A *role* (see `roles.md`) parameterises the loop; the loop itself is the same fo
 1. Assemble Context        (system_prompt + skill + repo AGENTS.md/CLAUDE.md + ticket request;
                             tools = built-ins + MCP tools)
 2. echo::stream(model, ctx)
-3. For each event:
+3. For each streamed event:
      text / thinking  → emit score.voice-event/v1 to stdout
-     tool_call        → run the tool, append ToolResult to ctx.messages, go to 2
-4. done(stop)         → finalise: run acceptance checks, write report, exit 0
-   built-in signal    → write report, exit 3 (infeasible) / 4 (needs-input)
-   budget exceeded    → write partial report, exit 1
+     tool_call deltas → emit + accumulate (do not execute yet)
+4. On the terminal event:
+     done(stop)       → finalise: run acceptance checks, write report, exit 0
+     done(tool_use)   → execute ALL N tool calls (see mcp-bridge.md), append the assistant
+                        message + N ToolResults, go to 2
+     built-in signal  → write report, exit 3 (infeasible) / 4 (needs-input)
+     error / overflow / budget → see failure-contract.md
 ```
 
 Voice links `echo` as a crate, so step 2 reuses one connection across turns and shares types
@@ -38,8 +41,9 @@ Voice builds the `echo::Context` for each turn from:
   (read from `VOICE_TICKET_PATH`; same fields as the old protocol).
 - The growing `messages` list (prior turns + tool results) for this run.
 
-System content order: base `system_prompt` → repo `AGENTS.md`/`CLAUDE.md` → `skill.body`. The
-ticket request is the first user message.
+System content order: base `system_prompt` → repo `AGENTS.md`/`CLAUDE.md` → `skill.body` →
+the **Voice harness addendum** (the built-in / commit / stop / budget protocol, injected last for
+salience — see `system-prompt.md`). The ticket request is the first user message.
 
 ---
 
@@ -48,12 +52,16 @@ ticket request is the first user message.
 Two sources, both surfaced to the model as `echo` `Tool` schemas:
 
 1. **MCP tools.** Voice launches the role's `mcp_servers` (`roles.md`), enumerates their tools,
-   and converts each to a `Tool` (name `"<server>/<tool>"`, JSON-Schema params). On a
-   `tool_call` event Voice routes to the owning MCP server and returns its result as a
-   `ToolResult`. **echo never sees MCP** — it only sees schemas and emits calls.
-2. **Built-in signal tools** (always present): `needs_input` and `infeasible` (below).
+   and converts each to a `Tool` (name `"<server>/<tool>"`, JSON-Schema params). On
+   `done(tool_use)` Voice routes each call to the owning MCP server and returns its result as a
+   `ToolResult`. **echo never sees MCP** — it only sees schemas and emits calls. v1 consumes MCP
+   **tools only** (resources/prompts/sampling are v2). Full bridge mechanics — lifecycle, batch
+   execution, content mapping — are in `mcp-bridge.md`.
+2. **Built-in tools** (always present), two kinds: **exit signals** `needs_input` / `infeasible`
+   (below) and **loop control** `compact` (`failure-contract.md`).
 
-The role's `tools.allow` list gates which tools are exposed.
+The role's `tools.allow` list gates which tools are exposed (at enumeration, plus a call-time
+reject for unknown names).
 
 ---
 
@@ -76,9 +84,14 @@ the payloads.
 
 ## Completion & acceptance
 
-On `done(stop)` Voice runs `spec.acceptance.automated` commands in the workspace, records
-results in the report, and exits `0` (the human reviews; acceptance results inform them — they
-are not a hard gate that flips the exit code in v1).
+On `done(stop)` Voice runs `spec.acceptance.automated` commands in the workspace, records results
+in the report, and exits `0`. This is the **mechanical** acceptance layer — cheap, deterministic,
+and trustworthy, but not a hard gate that flips the exit code in v1.
+
+Deeper review — whether the change actually satisfies the spec, including what the commands miss
+— is a separate **judgment** layer, done by a verifier role and/or a human (see "Skills, not
+pipelines" in `roles.md`). The two layers compose; a verifier does not replace mechanical
+acceptance.
 
 ---
 

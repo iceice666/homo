@@ -20,11 +20,14 @@ No Elixir source code exists yet. All design lives in `spec/`. Write spec before
 | `spec/lifecycle.md` | Ticket state transitions, guards, who can trigger each move |
 | `spec/api.md` | The Phoenix Channels API surface exposed to Aria and future clients |
 
-## Skills
+## Roles & skills
 
-Agent skill prompts live in `skills/<name>/SKILL.md`. Harmony passes the relevant skill file
-path when dispatching Voice for a ticket. Do not rename skill directories — they are resolved
-by convention.
+An agent is a **role** (planner, builder, reviewer, …) — a setup, not an external CLI. Harmony
+owns the **global** role catalog; a project's `.score/` provides repo-specific overrides (repo
+wins). Skill prompts live in `skills/<name>/SKILL.md` and are one component of a role. At
+dispatch Harmony resolves the role into a `score.role-manifest/v1` and passes its path to Voice
+via `VOICE_ROLE_MANIFEST` (see `../CONTRACT.md` → "Role manifest"). Do not rename skill
+directories — they are resolved by convention.
 
 ## Dev environment
 
@@ -37,8 +40,9 @@ Provides: `erlang`, `elixir`, `elixir-ls`. Mix/Hex caches go to `~/.mix`.
 
 - **Git is the only durable state.** The in-memory TicketCache is a derived projection that can
   be rebuilt at any time from `git HEAD`. Never treat the cache as authoritative.
-- **Harmony runs no models and holds no API keys.** Agents come from external CLIs, wrapped by
-  Voice; Harmony only orchestrates dispatch and enforces workflow rules.
+- **Harmony runs no models and holds no API keys.** Agents run a native loop in Voice, which
+  reaches models through `echo`; Harmony resolves roles, orchestrates dispatch, and enforces
+  workflow rules.
 
 ## Cross-package contract
 

@@ -61,6 +61,12 @@ Accessible from a toolbar icon or menu. Shows detected CLI agents on this machin
 
 Detection is done by Harmony (it probes `PATH`); Aria only renders the report.
 
+> **Reframe pending.** Agents are now **roles** backed by `echo` providers/models, not detected
+> CLI binaries. This panel becomes a *providers / models* view (which providers have credentials,
+> which models are available) and the picker selects a **role** (+ optional model). The mockups
+> in this file still show the old CLI-detection framing; full reshape is a follow-up — see the
+> deferred note in `../../CONTRACT.md`.
+
 ## Assignee picker
 
 Appears in the ticket detail header and the new-ticket form. Lists:

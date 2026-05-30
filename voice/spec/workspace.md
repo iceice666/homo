@@ -41,24 +41,25 @@ git -C <VOICE_WORKSPACE> reset --hard origin/<default_branch>
 
 ## CWD pin invariant
 
-Voice (and its CLI subprocess) must always run with the working directory set to
-`VOICE_WORKSPACE`. The CLI agent must not `cd` outside this directory. This invariant ensures
-the agent's file operations stay within the isolated worktree.
+Voice (and the tools it runs) must always operate with the working directory set to
+`VOICE_WORKSPACE`. File and shell tools must not `cd` outside this directory. This invariant
+keeps the agent's file operations within the isolated worktree.
 
-Voice should pass the workspace path explicitly to the CLI adapter rather than relying on
-inherited `$CWD`.
+Voice scopes its MCP servers and shell tools to the workspace path explicitly rather than
+relying on inherited `$CWD`.
 
 ---
 
-## What the CLI sees
+## What the agent sees
 
 Inside the worktree:
 - Full project source at the tip of the default branch (or last known-good state).
+- The repo's root `AGENTS.md` / `CLAUDE.md`, which Voice folds into the model context.
 - A `.score/` directory (carried from the branch) — ticket files are readable here.
 - A fresh branch `score/<ticket-id>` ready for commits.
 
-The CLI agent should commit its changes to this branch. Harmony or the human can then open a
-PR or merge at review time.
+The agent commits its changes to this branch via its tools. Harmony or the human can then open
+a PR or merge at review time.
 
 ---
 

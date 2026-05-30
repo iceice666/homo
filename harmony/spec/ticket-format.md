@@ -28,7 +28,7 @@ Optional fields present from creation:
 ```yaml
 notes: "indicator flickers on rapid switching — investigate debounce"
 tags: [bug, macos]              # free-form strings; conventional tags below
-assignee: "@claude"             # @me | @<cli-name> | blank
+assignee: "@builder"            # @me | @<role> | blank
 pitch: >                        # Shape Up-style: problem + solution sketch
   The mode indicator flickers when switching faster than ~3/sec.
   A debounce in ModeManager should fix it.

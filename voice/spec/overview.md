@@ -2,48 +2,56 @@
 
 ## What Voice is
 
-Voice is the per-ticket agent harness. Harmony spawns one `voice` binary per ticket dispatch.
-Voice is responsible for:
+Voice is the **agent basement**: a native per-agent harness. Harmony spawns one `voice` process
+per dispatch (**one process per agent**). Voice runs an agent loop itself — it drives the model
+through the linked `echo` library and executes tools — rather than wrapping an external agent
+CLI. Responsibilities:
 
-1. Setting up an isolated git worktree for the ticket.
-2. Invoking the appropriate CLI adapter (e.g. `claude`, `codex`, `gemini`).
-3. Relaying output back to Harmony line-by-line via stdout.
-4. Writing a structured run report JSON to `VOICE_REPORT_PATH`.
-5. Exiting with the correct exit code so Harmony can act on the result.
+1. Set up an isolated git worktree for the ticket (`spec/workspace.md`).
+2. Read the resolved role manifest and assemble the model context (`spec/roles.md`).
+3. Run the agent loop: `echo` model calls + MCP tool execution (`spec/agent-loop.md`).
+4. Stream `score.voice-event/v1` progress to stdout for Harmony to relay.
+5. Write a structured run report to `VOICE_REPORT_PATH`.
+6. Exit with the correct code so Harmony can act.
 
 Voice does **not**:
-- Call any LLM API directly.
-- Hold API keys or OAuth credentials (the external CLI owns these).
-- Write to the ticket YAML file (Harmony does this based on the exit code and run report).
-- Manage WIP limits or dispatch decisions (Harmony owns these).
+- Implement provider/model logic — that is `echo` (linked, not re-implemented).
+- Choose models or resolve the global/repo role layering — Harmony does (`spec/roles.md`).
+- Write the ticket YAML — Harmony does, from the exit code and report.
+- Manage WIP limits or dispatch — Harmony does.
 
 ## Implementation language
 
-**Rust.** Single workspace at `voice/` with two crates:
+**Rust.** One workspace at `voice/`:
 
-- `crates/core` — library: env parsing, worktree management, adapter trait + impls,
-  run report schema.
-- `crates/voice` — binary: entry point, orchestrates core, owns exit codes.
+- `crates/core` — library: env parsing, worktree management, role-manifest model, the agent
+  loop, the MCP↔echo bridge, run-report schema.
+- `crates/voice` — binary: entry point, owns exit codes.
+
+Voice depends on the `echo` crate (`../echo`) and links it **in-process** — this is the whole
+reason Voice is Rust: connection reuse across turns and types shared with `echo` at compile
+time. See `CLAUDE.md`.
 
 ## Design intent
 
-Voice is intentionally thin. Most interesting logic lives in the CLI adapters
-(`spec/cli-adapters.md`) and the run report schema (`spec/report.md`). The binary
-itself is a coordinator: read env vars → set up worktree → run adapter → write report → exit.
+Voice is a thin, well-typed coordinator around two libraries: `echo` (model I/O) and an MCP
+client (tools). The interesting variation between agents lives in *roles* (`spec/roles.md`),
+not in code paths. The loop is identical for every role.
 
 ## Scope of v1
 
 Must exist before shipping:
 
-1. Read and validate all `VOICE_*` env vars (see `spec/protocol.md`)
-2. Set up git worktree at `VOICE_WORKSPACE` (see `spec/workspace.md`)
-3. Resolve and invoke the CLI adapter for `VOICE_CLI` (see `spec/cli-adapters.md`)
-4. Stream output lines to stdout (Harmony relays these as `run:progress` events)
-5. Write run report JSON on exit (see `spec/report.md`)
-6. Exit with correct code
-7. Handle `SIGTERM` gracefully (write partial report, clean up worktree)
+1. Read/validate `VOICE_*` env vars (`spec/protocol.md`).
+2. Set up the git worktree (`spec/workspace.md`).
+3. Load + apply the role manifest; read repo `AGENTS.md`/`CLAUDE.md` (`spec/roles.md`).
+4. Run the agent loop via `echo`; launch MCP servers; bridge tools (`spec/agent-loop.md`).
+5. Emit `score.voice-event/v1` progress on stdout (`spec/protocol.md`).
+6. Built-in `needs_input` / `infeasible` signal tools → exit `4` / `3`.
+7. Write the run report (`spec/report.md`); exit with the correct code.
+8. Handle `SIGTERM` (write partial report, tear down MCP + worktree, exit `5`).
 
 Out of scope for v1:
-- Tool-call interception (agent runs in autonomous mode)
-- Multi-turn session management (single autonomous run per invocation)
-- Workspace reuse across runs (each invocation gets a fresh worktree)
+- Sub-agents (if added: Voice asks Harmony to spawn a child Voice — never threads internally).
+- Workspace reuse across runs (every dispatch gets a fresh worktree).
+- Providers beyond echo's v1 set.

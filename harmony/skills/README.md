@@ -1,10 +1,13 @@
 # Harmony — Skills
 
-Agent skill prompts used when Harmony dispatches Voice with a specific skill role.
+Skill prompts are one component of a **role** (see `../../CONTRACT.md` → "Role manifest"). An
+agent is a role — planner, builder, reviewer, … — and a skill supplies that role's specialised
+system-prompt body.
 
-Each skill is a directory containing a `SKILL.md` file. When a ticket specifies a skill,
-Harmony passes the skill file path to Voice, which prepends its content to the CLI agent's
-system prompt after stripping YAML frontmatter.
+Each skill is a directory containing a `SKILL.md` file. At dispatch, Harmony resolves the role
+into a `score.role-manifest/v1`: it strips the skill's YAML frontmatter and embeds the body as
+`skill.body`, alongside the base system prompt, model, tools, and budgets. Voice assembles the
+final context from the manifest plus the repo's `AGENTS.md`/`CLAUDE.md`.
 
 ## Available skills
 
@@ -33,12 +36,19 @@ description: Write or improve a ticket's execution spec
 <system prompt content here>
 ```
 
-Frontmatter is stripped before the content is used. Only the body reaches the CLI agent.
+Frontmatter is stripped before the content is used. Only the body reaches the agent (as
+`skill.body` in the role manifest).
+
+## Resolution: global + repo
+
+These package-level skills are the **global** catalog. A project's `.score/` may add or
+override skills (repo wins on name collision), and likewise for the per-role model and MCP
+servers — Harmony merges them when resolving the role manifest. See `../../CONTRACT.md` →
+"Role manifest".
 
 ## Deferred decisions
 
 - Whether skills remain a flat list or gain a category structure.
-- Whether skills can be repo-local (`.score/skills/`) overriding these package-level defaults.
 - The `verify` skill is the closest analogue to the old `yjsp-verify` role; the executor /
   verifier pipeline split has been dropped — a single dispatched agent handles the work and
   the human reviews.

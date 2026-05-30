@@ -1,31 +1,36 @@
 # echo
 
-A personal conversational AI companion for the terminal. Think [Pi](https://pi.ai) —
-warm, stateful, always-on — but yours, in OCaml, with BYOK.
+The **unified LLM client** for the **Partitura** system, in Rust. One `Context` goes in, a
+stream of typed events comes out — the same interface across every provider. Modelled on
+[`@earendil-works/pi-ai`](https://www.npmjs.com/package/@earendil-works/pi-ai).
 
+Delivered two ways from one codebase:
+
+- a **library crate** that [`voice`](../voice/) links in-process for every model call, and
+- a **thin CLI** for humans and non-Rust callers.
+
+```sh
+echo run  --model anthropic/claude-opus-4-8 < context.json   # one-shot: JSON in, JSONL events out
+echo repl --model openai/gpt-…                               # interactive test REPL
 ```
-$ echo chat
-echo> Hey! What's on your mind?
-You: _
-```
 
-## Backends
+## Providers (v1)
 
-| Flag | Backend | Auth |
-|------|---------|------|
-| `--backend claude-cli` | Wraps `claude -p` (subprocess) | Claude CLI login |
-| `--backend claude-api` | Anthropic REST API | `ANTHROPIC_API_KEY` |
-| `--backend openai` | OpenAI REST API | `OPENAI_API_KEY` (BYOK or ChatGPT key) |
-| `--backend custom` | Any OpenAI-compatible endpoint | `ECHO_CUSTOM_URL` + optional key |
+| Provider | Auth |
+|----------|------|
+| Anthropic | `ANTHROPIC_API_KEY` |
+| OpenAI | `OPENAI_API_KEY` |
+| OpenAI (ChatGPT subscription) | OAuth — `echo login openai-chatgpt` |
+
+## What echo is not
+
+Not an agent. No loop, no tools, no MCP, no persistence. It builds a request, sends it, and
+surfaces the response. The agent loop is [`voice`](../voice/), which links echo.
 
 ## Docs
 
-All design is in [`spec/`](spec/). No implementation code exists yet.
-
-## Part of Partitura
-
-One of four packages in the **Partitura** system, alongside [`aria`](../aria/) (desktop UI),
-[`harmony`](../harmony/) (state manager), and [`voice`](../voice/) (agent harness). Unlike
-those three, `echo` is standalone — it does not talk to Harmony and runs on its own.
+All design is in [`spec/`](spec/). The `voice`↔`echo` API is also in
+[`../CONTRACT.md`](../CONTRACT.md). No implementation code exists yet (the spec describes the
+Rust gateway; the current skeleton is the older OCaml scaffold, pending migration).
 
 ## Status: spec-only

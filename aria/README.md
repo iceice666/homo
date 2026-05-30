@@ -1,8 +1,8 @@
 # Aria
 
 The desktop UI for the **Partitura** system. Aria is your window into project state — a board of
-tickets, a run-report panel when an agent finishes, and a live runtimes inventory showing
-which CLI agents are detected on this machine.
+tickets, a run-report panel when an agent finishes, and a view of the available providers and
+models that agents can run on.
 
 Two parallel native implementations, sharing only the protocol contract:
 
@@ -22,6 +22,6 @@ All design is in [`spec/`](spec/). No implementation code exists yet.
 
 One of four packages in the **Partitura** system. Aria is the UI layer — it talks to
 [`harmony`](../harmony/) (the Elixir/OTP state manager), which dispatches [`voice`](../voice/)
-(the agent harness). [`echo`](../echo/) is a standalone companion REPL, not part of this loop.
+(the agent harness). [`echo`](../echo/) is the unified LLM client that Voice links for model calls.
 
 ## Status: spec-only

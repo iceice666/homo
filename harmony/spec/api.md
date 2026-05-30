@@ -32,14 +32,14 @@ On join: reply with full ticket snapshot (all tickets for that project).
 | `ticket:list` | Re-send full snapshot from TicketCache |
 | `ticket:create` | Validate + write new ticket YAML; commit to git; broadcast `ticket:changed` |
 | `ticket:update` | Validate patch + transition guards; write YAML; commit to git on behalf of the human operator; broadcast `ticket:changed`. Also the path for answering a paused run (write `spec.clarifications`, transition `awaiting_input → ready`) and for respec (`reviewing → specced`). |
-| `run:dispatch` | Validate guards; commit `status: building` to git; spawn Voice subprocess |
+| `run:dispatch` | Validate guards; resolve the role manifest (global + repo overrides) and write it to `VOICE_ROLE_MANIFEST`; commit `status: building` to git; spawn one Voice subprocess. Payload `{ ticket_id, role, model? }` |
 | `run:cancel` | Send SIGTERM to Voice subprocess. Voice exits `5` (`cancelled`); Harmony commits `status: ready` reset. **No retry** — exit `5` is distinct from exit `1` (failed) precisely so a cancel does not re-dispatch. |
 
 | Event (outbound) | Trigger |
 |------------------|---------|
 | `ticket:changed` | Any ticket file write |
 | `run:started` | Voice spawned |
-| `run:progress` | Line of Voice output (rate-limited 10 Hz) |
+| `run:progress` | A `score.voice-event/v1` event from Voice's stdout stream (rate-limited 10 Hz) |
 | `run:finished` | Voice exited; payload: run report summary (includes `exit_reason`). An `infeasible` return rides on this event with `exit_reason: infeasible`; Aria reads `spec.respec_notes` for the analysis. |
 | `run:needs_input` | Voice exited `needs-input` (exit `4`); payload: `{ run_id, ticket_id, questions }`. Aria prompts the human; answers return via `ticket:update`. |
 | `wip:warning` | A soft WIP cap exceeded |

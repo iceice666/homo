@@ -1,7 +1,8 @@
 # Contract
 
-This file is the canonical definition of the interfaces between `aria`, `harmony`, and `voice`.
-Each package's spec docs link here rather than duplicating protocol details.
+This file is the canonical definition of the interfaces between `aria`, `harmony`, `voice`,
+and the `echo` library that `voice` links. Each package's spec docs link here rather than
+duplicating protocol details.
 
 ---
 
@@ -73,11 +74,11 @@ The surface (channel events) that Aria uses:
 | Client→Server | `ticket:list` | `{ project_id }` |
 | Client→Server | `ticket:create` | ticket partial YAML |
 | Client→Server | `ticket:update` | `{ id, patch }` |
-| Client→Server | `run:dispatch` | `{ ticket_id, cli }` |
+| Client→Server | `run:dispatch` | `{ ticket_id, role, model? }` |
 | Client→Server | `run:cancel` | `{ run_id }` |
 | Server→Client | `ticket:changed` | full ticket map |
 | Server→Client | `run:started` | `{ run_id, ticket_id }` |
-| Server→Client | `run:progress` | `{ run_id, line }` |
+| Server→Client | `run:progress` | `{ run_id, event }` — a `score.voice-event/v1` object (see Harmony ↔ Voice) |
 | Server→Client | `run:finished` | run report summary (includes `exit_reason`) |
 | Server→Client | `run:needs_input` | `{ run_id, ticket_id, questions }` |
 
@@ -96,8 +97,10 @@ Multi-machine / team support is deferred.
 
 ## Harmony ↔ Voice spawn protocol
 
-Harmony spawns Voice as a subprocess per ticket dispatch. Voice is **any binary or script**
-that satisfies the following contract.
+Harmony spawns Voice as a subprocess per ticket dispatch — **one Voice process per agent**.
+Voice runs a native agent loop: it calls models through the linked `echo` library (see
+"Voice ↔ echo" below) rather than wrapping an external agent CLI. It satisfies the following
+contract.
 
 ### Environment variables (set by Harmony)
 
@@ -105,9 +108,66 @@ that satisfies the following contract.
 |-----|-------|
 | `VOICE_TICKET_PATH` | Absolute path to the ticket YAML file |
 | `VOICE_WORKSPACE` | Absolute path to the git worktree for this ticket |
-| `VOICE_CLI` | Adapter name: `claude` · `codex` · `gemini` · `cursor-agent` |
+| `VOICE_ROLE_MANIFEST` | Absolute path to the resolved role manifest JSON (see "Role manifest" below) |
 | `VOICE_REPORT_PATH` | Absolute path where Voice must write the run report JSON |
 | `VOICE_RUN_ID` | Run ID string (for logging and report naming) |
+
+`VOICE_ROLE_MANIFEST` replaces the former `VOICE_CLI`: an agent is no longer an external CLI
+name but a **role** that Harmony resolves into a setup. See "Role manifest" and "Voice ↔ echo".
+
+### Role manifest
+
+A **role** is what an agent *is* — planner, builder, reviewer, … — expressed as a setup, not
+as an external CLI. Harmony resolves a role into a manifest at dispatch time and writes it to
+`VOICE_ROLE_MANIFEST`. Resolution layers two sources, **repo overrides global**:
+
+- **Harmony (global):** base system prompt, the skill catalog (`harmony/skills/<name>/SKILL.md`),
+  the default model per role, and default MCP servers.
+- **Repo (project-specific):** `<project>/.score/` overrides — project skills, project MCP
+  servers, model override — plus the repo's root `AGENTS.md` / `CLAUDE.md`, which Voice reads
+  from the worktree directly (it is not copied into the manifest).
+
+Canonical schema version: `score.role-manifest/v1`.
+
+```json
+{
+  "schema": "score.role-manifest/v1",
+  "role": "builder",
+  "system_prompt": "<base system prompt, global>",
+  "skill": { "name": "spec", "body": "<SKILL.md body, frontmatter stripped>" },
+  "model": { "provider": "anthropic", "id": "claude-opus-4-8" },
+  "tools": {
+    "mcp_servers": [
+      { "name": "fs", "command": "…", "args": ["…"], "env": {} }
+    ],
+    "allow": ["fs/*", "shell/run"]
+  },
+  "budgets": { "max_turns": 60, "max_tokens": 2000000, "max_seconds": 3600 }
+}
+```
+
+Voice assembles the model `Context` (see "Voice ↔ echo") from `system_prompt` + `skill.body`
++ the repo's `AGENTS.md`/`CLAUDE.md` + the ticket request (`spec.*`, `pitch`, `notes`). It
+launches the `mcp_servers`, exposes their tools to the model, and routes tool calls back to
+them. **Harmony resolves config; Voice does runtime assembly and tool execution.**
+
+### Voice → Harmony progress stream
+
+Voice's **stdout is a protocol channel**, not free-form logs: it emits newline-delimited JSON
+(`score.voice-event/v1`), one event per line. Harmony tails it and re-emits each event as a
+`run:progress` channel event to Aria (rate-limited). **All human-facing logging goes to stderr.**
+
+```json
+{ "schema": "score.voice-event/v1", "t": "turn",        "n": 3 }
+{ "schema": "score.voice-event/v1", "t": "text",        "delta": "Looking at the mode manager…" }
+{ "schema": "score.voice-event/v1", "t": "tool_call",   "name": "fs/read", "args": { "path": "…" } }
+{ "schema": "score.voice-event/v1", "t": "tool_result", "name": "fs/read", "ok": true }
+{ "schema": "score.voice-event/v1", "t": "status",      "msg": "running acceptance checks" }
+```
+
+Event types: `turn` · `text` · `thinking` · `tool_call` · `tool_result` · `status` · `error`.
+They mirror the `echo` event union (below) one level up. The final outcome is **not** carried
+here — that is the run report + exit code.
 
 ### Voice exit codes
 
@@ -135,7 +195,7 @@ and `4`; best-effort (partial) for `1` and `5`; optional for `2`.
 `cancelled`. A report with `exit_reason: needs-input` must carry a `questions` array; one with
 `exit_reason: infeasible` must carry an `infeasibility` object.
 
-Minimum fields: `run_id`, `ticket_id`, `cli`, `exit_reason`, `started_at`, `finished_at`.
+Minimum fields: `run_id`, `ticket_id`, `role`, `model`, `exit_reason`, `started_at`, `finished_at`.
 
 ### Worktree invariant
 
@@ -149,15 +209,30 @@ retained for human inspection while a ticket sits in a human-pending state (`rev
 
 ---
 
-## echo — standalone companion
+## Voice ↔ echo (the LLM client)
 
-`echo` is a personal conversational AI REPL (OCaml). It is **not** part of the Harmony/Aria/Voice
-loop — it has no shared on-disk layout, no channel events, and is not dispatched by Harmony.
+`echo` is the unified LLM client for the system (Rust). One codebase, delivered two ways:
 
-If echo is ever made Harmony-aware (e.g. injecting current-ticket context into its system
-prompt), a new section must be added here before any code is written.
+- a **library crate** that Voice links **in-process** — Voice's hot path (connection reuse
+  across turns; request/response/event types shared at compile time); and
+- a **thin `echo` CLI** (one-shot `Context` JSON in → `score.echo-event/v1` JSONL out, plus a
+  REPL for interactive testing) for humans and any non-Rust caller.
 
-On-disk layout for echo is documented solely in `echo/spec/session.md`.
+The interface follows the `pi-ai` shape. Core types:
+
+- `Context { system_prompt, messages: Message[], tools: Tool[] }`
+- `Message` — tagged union `User | Assistant | ToolResult`; content blocks `text | thinking |
+  image | tool_call`
+- `Model { provider, id, … }`; `complete(model, ctx, opts) -> Assistant` and
+  `stream(model, ctx, opts) -> events`
+- event union: `text_*` · `thinking_*` · `toolcall_*` · `done` · `error`, each carrying a
+  `partial` message and a `content_index`
+
+echo owns provider abstraction, auth, streaming, retries, and usage/cost — **not** tools or
+MCP. It receives `tools` as schemas and emits `tool_call` events; Voice runs the tools and
+feeds back a `ToolResult`. **v1 providers:** Anthropic (API key), OpenAI (API key), OpenAI
+ChatGPT-subscription OAuth. Harmony does not call echo in v1 — only Voice (linked) and the
+human (CLI) do. Full surface: `echo/spec/`.
 
 ---
 
@@ -169,4 +244,7 @@ The following are open and should be resolved in the spec file noted:
 - Skill/role catalog shape after dropping pipeline/advisory split → `harmony/skills/README.md`
 - macOS-vs-Linux desktop bootstrap order → `aria/spec/overview.md`
 - Whether Harmony exposes a CLI client (fourth package or part of `harmony/`) → `harmony/spec/api.md`
-- Whether echo gains Harmony awareness (ticket context injection) → `echo/spec/overview.md`
+- Aria's "runtimes inventory" (built around detected agent CLIs) → reframe as available
+  **providers/models** surfaced from echo → `aria/spec/ui-shape.md`
+- Whether Harmony itself calls echo (cheap triage/classification). Not in v1 → `harmony/spec/overview.md`
+- echo provider expansion: Anthropic subscription OAuth, OpenAI-compatible/local endpoints → `echo/spec/providers.md`

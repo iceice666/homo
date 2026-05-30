@@ -7,7 +7,7 @@ Personal sandbox. Four packages, all spec-phase.
 | `aria/` | Desktop UI — what you see | SwiftUI (macOS) · GTK (Linux) |
 | `harmony/` | State manager — what the engine knows | Elixir/OTP |
 | `voice/` | Agent harness — what an agent run does | Rust |
-| `echo/` | Conversational AI companion — who you talk to | OCaml |
+| `echo/` | Unified LLM client — how requests reach a model | Rust |
 
 ## How they fit together
 
@@ -15,39 +15,43 @@ Personal sandbox. Four packages, all spec-phase.
 ┌─────────────────────────────────────────┐
 │  Aria  (desktop UI)                     │
 │  board · ticket detail · run report     │
-│  runtimes inventory                     │
+│  providers / models                     │
 └────────────────┬────────────────────────┘
                  │  Phoenix Channels / WebSocket (see CONTRACT.md)
 ┌────────────────▼────────────────────────┐
 │  Harmony  (Elixir/OTP daemon)           │
 │  two-layer state model · WIP limits     │
-│  file-watcher · dispatch                │
+│  file-watcher · role catalog · dispatch │
 └────────────────┬────────────────────────┘
-                 │  subprocess spawn (see CONTRACT.md)
+                 │  subprocess spawn, one per agent (see CONTRACT.md)
 ┌────────────────▼────────────────────────┐
-│  Voice  (per-ticket runner)             │
-│  sets up worktree · spawns external CLI │
-│  (claude / codex / gemini / …)          │
+│  Voice  (per-agent runner, Rust)        │
+│  worktree · native agent loop · MCP     │
 │  writes run report                      │
-└─────────────────────────────────────────┘
-
-┌─────────────────────────────────────────┐
-│  echo  (standalone companion REPL)      │
-│  not part of the dispatch loop          │
-└─────────────────────────────────────────┘
+└────────────────┬────────────────────────┘
+                 │  links in-process (crate)
+┌────────────────▼────────────────────────┐
+│  echo  (unified LLM client, Rust)       │
+│  Context → stream/complete · providers  │
+│  + thin CLI / test REPL for humans      │
+└────────────────┬────────────────────────┘
+                 │  HTTPS
+            LLM provider (Anthropic · OpenAI)
 ```
 
 Project state lives as YAML files inside each project repo under `.score/tickets/`.
-Harmony watches those files; Aria displays them; Voice acts on them. `echo` stands apart —
-a personal conversational AI companion that runs on its own.
+Harmony watches those files; Aria displays them; Voice acts on them. Voice runs a native
+agent loop and reaches models through `echo`, the shared LLM client. `echo` also ships a thin
+CLI with a REPL for talking to a model directly.
 
-Agents come from external CLIs you already have installed — no model client is bundled.
+No agent model client is bundled per-CLI — `echo` is the one place provider abstraction, auth,
+and streaming live.
 
 ## Cross-package contract
 
-See [`CONTRACT.md`](CONTRACT.md) for the on-disk layout, wire protocol surface, and spawn
-protocol that `aria`, `harmony`, and `voice` implement against. (`echo` is standalone and is
-not covered by the contract.)
+See [`CONTRACT.md`](CONTRACT.md) for the on-disk layout, wire protocol surface, spawn
+protocol, and the `voice`↔`echo` API that `aria`, `harmony`, `voice`, and `echo` implement
+against.
 
 ## Inspiration
 

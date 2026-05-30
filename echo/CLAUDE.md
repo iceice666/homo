@@ -1,63 +1,71 @@
 # echo — Claude guidance
 
-Personal conversational AI companion. A readline REPL written in OCaml that wraps one or more
-AI backends and feels like Pi — warm, stateful, always-on — while living fully in the terminal.
+The **unified LLM client** for Partitura. One codebase, two shapes: a **library crate** that
+`voice` links in-process for every model call, and a **thin CLI** (one-shot + a test REPL) for
+humans and non-Rust callers. Shapes follow [`pi-ai`](https://www.npmjs.com/package/@earendil-works/pi-ai):
+a `Context` goes in, a stream of typed events comes out, across all providers.
 
 ## Status: spec-only
 
-No OCaml source exists yet. All design lives in `spec/`. Write spec before code.
+No Rust source exists yet. All design lives in `spec/`. Write spec before code.
 
 ## Spec map
 
 | File | What it covers |
 |------|----------------|
-| `spec/overview.md` | Product goals, guiding principles, non-goals |
-| `spec/backends.md` | Provider adapter interface and each supported backend |
-| `spec/session.md` | Conversation session model, history, persistence |
-| `spec/config.md` | Configuration schema — API keys, defaults, per-profile settings |
+| `spec/overview.md` | What echo is, delivery (crate + CLI), goals, non-goals |
+| `spec/api.md` | Library API: `Context`/`Message`/`Tool`/`Model`, `stream`/`complete`, event union |
+| `spec/providers.md` | v1 providers (Anthropic · OpenAI · OpenAI ChatGPT OAuth) + auth |
+| `spec/cli.md` | The thin CLI: one-shot (`Context` JSON → JSONL events) and the test REPL |
+| `spec/config.md` | Config file, env vars, OAuth token store |
 
-## Package layout (planned)
+## Package layout (planned — Rust)
 
 ```
 echo/
-  bin/
-    main.ml          # entry point — arg parsing, profile selection, REPL loop
-  lib/
-    backend/         # one module per provider adapter
-      claude_cli.ml  # wraps `claude -p` subprocess
-      claude_api.ml  # direct Anthropic REST API (BYOK)
-      openai.ml      # OpenAI-compatible REST API (BYOK / ChatGPT key)
-      custom.ml      # any OpenAI-compat endpoint (Ollama, local LM, etc.)
-    session.ml       # in-memory conversation state + disk persistence
-    config.ml        # config file loading, env var resolution
-    repl.ml          # readline loop, prompt rendering, streaming display
+  Cargo.toml          # workspace
+  crates/
+    core/             # library crate `echo` — the LLM client API
+      src/
+        lib.rs
+        context.rs    # Context, Message, Block, Tool
+        model.rs      # Model, Provider, registry
+        event.rs      # the streaming event union
+        client.rs     # stream / complete
+        provider/     # one adapter per provider
+          anthropic.rs
+          openai.rs
+          openai_chatgpt.rs
+        auth.rs       # env keys + OAuth token store
+    cli/              # binary `echo` — one-shot + REPL, links crate `echo`
+      src/main.rs
   spec/
-  dune-project
-  dune              # (root lib + bin targets)
 ```
+
+`voice` depends on crate `echo` (path/workspace dependency). Edition 2024.
 
 ## Build
 
 ```sh
 # from echo/
-opam install . --deps-only    # install OCaml deps (once)
-dune build                    # build the binary
-dune exec echo -- chat        # start a session
-dune test                     # run tests
+cargo build
+cargo run -p echo-cli -- run --model anthropic/claude-opus-4-8 < context.json
+cargo test --workspace
+cargo clippy --workspace --all-targets
+cargo fmt --all
 ```
-
-Edition: OCaml ≥ 5.1, dune ≥ 3.16.
 
 ## Key constraints
 
-- **No model logic inside echo.** Echo routes messages to backends; it does not prompt-engineer,
-  chain calls, or own tool definitions. That belongs to the backend or a future skill layer.
-- **Streaming first.** All backends must surface tokens as they arrive; blocking until a full
-  response is a fallback, not the default.
-- **Offline-tolerant.** History is always flushed to disk before sending a request. A crash or
-  network failure must never lose a user message.
+- **No agent logic.** No loop, no tool execution, no MCP, no prompt assembly from skills. Echo
+  takes `tools` as schemas and emits `tool_call` events; the caller runs them.
+- **Streaming is the interface.** `complete` is a thin collector over `stream`.
+- **Secrets stay local.** Keys from env or chmod-600 config; OAuth tokens in the token store.
+  Never logged, never in `echo config show`.
+- **Provider-agnostic callers.** Adding a provider must not change the `Context`/`stream` API.
 
 ## Cross-package contract
 
-Echo is standalone — it does not talk to Harmony and is not dispatched by Harmony.
-If that changes, `../CONTRACT.md` must be updated first.
+`voice` links echo in-process, so the crate API is a contract surface — see the "Voice ↔ echo"
+section of [`../CONTRACT.md`](../CONTRACT.md). Update `CONTRACT.md` before changing the
+`Context`/event shapes or the CLI's JSON I/O.

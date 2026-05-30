@@ -9,8 +9,9 @@ Harmony is a local Elixir/OTP daemon that acts as the engine behind the Partitur
 - Dispatches Voice subprocesses against isolated git worktrees when a ticket is ready.
 - Exposes a real-time API (Phoenix Channels) for Aria and future clients.
 
-Harmony does not run models, call LLM APIs, or own any secrets. Agents come from external
-CLIs (`claude`, `codex`, `gemini`, …) that Voice invokes.
+Harmony does not run models, call LLM APIs, or own any secrets. An agent is a **role** that
+Voice runs as a native loop, reaching models through `echo`. Harmony resolves roles (its global
+catalog + per-project `.score/` overrides) and dispatches Voice.
 
 ## Guiding principles
 
@@ -61,8 +62,9 @@ Must exist before shipping:
 1. Git hook installer + receiver per project: installs `post-commit`/`post-merge` hooks in each
    registered project; receives signals over Unix socket; reads HEAD; updates TicketCache
 2. State machine enforcer: guard transitions, enforce WIP limits
-3. Dispatcher: spawn Voice per dispatch, relay output, write run report path; commit state
-   changes to git for all machine-driven transitions
+3. Dispatcher: resolve the role manifest (global catalog + repo overrides) and write it for
+   Voice; spawn one Voice per agent; relay the `score.voice-event/v1` progress stream; write
+   the run report path; commit state changes to git for all machine-driven transitions
 4. Phoenix Channels API: the surface defined in `api.md`
 5. Config loader: `~/.score/config.yaml` + per-project `.score/config.yaml`
 

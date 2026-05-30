@@ -7,7 +7,7 @@ to update the ticket and notify Aria. Aria renders it as the "run-report panel" 
 
 ## Schema
 
-Written as JSON. All top-level fields except `notes`, `evidence`, `detected_clis`,
+Written as JSON. All top-level fields except `notes`, `evidence`,
 `acceptance_results`, `questions`, and `infeasibility` are required. The report itself is
 **mandatory** on exit `0`, `3`, and `4`; best-effort (partial) on `1` and `5`; optional on `2`.
 `questions` is required when `exit_reason` is `needs-input`; `infeasibility` is required when
@@ -18,7 +18,8 @@ Written as JSON. All top-level fields except `notes`, `evidence`, `detected_clis
   "schema": "score.run-report/v1",
   "run_id": "20260528-143012-a3f9",
   "ticket_id": "fix-mode-feedback",
-  "cli": "claude",
+  "role": "builder",
+  "model": "anthropic/claude-opus-4-8",
 
   "exit_reason": "completed",
   "started_at": "2026-05-28T14:30:12Z",
@@ -46,9 +47,7 @@ Written as JSON. All top-level fields except `notes`, `evidence`, `detected_clis
 
   "evidence": [
     ".score/runs/fix-mode-feedback/20260528-143012-a3f9/screenshot_matrix.png"
-  ],
-
-  "detected_clis": ["claude", "codex"]
+  ]
 }
 ```
 
@@ -61,20 +60,20 @@ Written as JSON. All top-level fields except `notes`, `evidence`, `detected_clis
 | `schema` | string | yes | Always `score.run-report/v1` |
 | `run_id` | string | yes | Matches `VOICE_RUN_ID` |
 | `ticket_id` | string | yes | From ticket YAML `id` field |
-| `cli` | string | yes | Matches `VOICE_CLI` |
+| `role` | string | yes | Role name from the role manifest |
+| `model` | string | yes | Resolved `provider/id` used for the run |
 | `exit_reason` | string | yes | `completed` · `failed` · `hard-abort` · `infeasible` · `needs-input` · `cancelled` |
 | `questions` | array | conditional | **Required** when `exit_reason` is `needs-input`. See below. |
 | `infeasibility` | object | conditional | **Required** when `exit_reason` is `infeasible`. See below. |
 | `started_at` | ISO 8601 | yes | When Voice started |
 | `finished_at` | ISO 8601 | yes | When Voice exited |
 | `duration_seconds` | int | yes | Wall-clock seconds |
-| `turns` | int | yes | Number of interaction turns with the CLI (0 if unavailable) |
-| `token_usage` | object | no | `input`, `output`, `cache_read` — best-effort from CLI output |
+| `turns` | int | yes | Number of model turns in the agent loop (0 if unavailable) |
+| `token_usage` | object | yes | `input`, `output`, `cache_read` — summed from echo `Usage` |
 | `files_changed` | array | yes | One entry per modified file: `path`, `additions`, `deletions` |
 | `acceptance_results` | array | no | One entry per `spec.acceptance.automated` command |
 | `notes` | string | no | Free-text summary from the CLI's final output |
 | `evidence` | array | no | Paths to files written to the runs directory |
-| `detected_clis` | array | no | CLI binaries found in `PATH` at run time — used to update Runtimes Inventory |
 
 ---
 
@@ -151,7 +150,8 @@ it has. Minimum required fields for a partial report:
   "schema": "score.run-report/v1",
   "run_id": "...",
   "ticket_id": "...",
-  "cli": "...",
+  "role": "...",
+  "model": "...",
   "exit_reason": "failed",
   "started_at": "...",
   "finished_at": "...",

@@ -1,101 +1,86 @@
 # Voice — Protocol
 
-How Harmony and Voice communicate.
+How Harmony and Voice communicate. The full contract is canonical in
+[`../../CONTRACT.md`](../../CONTRACT.md); this file adds Voice-side implementation notes.
 
 ---
 
 ## Spawn contract
 
-Harmony spawns Voice as a child process. The full contract is defined in
-[`../../CONTRACT.md`](../../CONTRACT.md). This file adds Voice-side implementation notes.
+Harmony spawns Voice as a child process, one per agent, and manages it via an Elixir `Port`
+(spawn + supervised stdout + exit signal + automatic teardown).
 
 ### Environment variables (set by Harmony)
 
 | Var | Type | Description |
 |-----|------|-------------|
-| `VOICE_TICKET_PATH` | absolute path | Path to the ticket YAML file |
-| `VOICE_WORKSPACE` | absolute path | Root of the git worktree Voice should create and work in |
-| `VOICE_CLI` | string | Adapter name: `claude` · `codex` · `gemini` · `cursor-agent` |
-| `VOICE_REPORT_PATH` | absolute path | Where Voice must write the run report JSON on exit |
+| `VOICE_TICKET_PATH` | absolute path | Ticket YAML file (the request) |
+| `VOICE_WORKSPACE` | absolute path | Git worktree root Voice creates and works in |
+| `VOICE_ROLE_MANIFEST` | absolute path | Resolved `score.role-manifest/v1` JSON (see `roles.md`) |
+| `VOICE_REPORT_PATH` | absolute path | Where Voice writes the run report on exit |
 | `VOICE_RUN_ID` | string | Run ID (`<timestamp>-<random>`) for logging and report naming |
 
-Voice must validate all five vars on startup. If any is missing or invalid, exit `2`
-(hard abort) immediately — workspace setup has not started yet so no cleanup is needed.
+Voice validates all five on startup. If any is missing or invalid, exit `2` (hard abort)
+immediately — worktree setup has not started, so no cleanup is needed. `VOICE_ROLE_MANIFEST`
+replaces the former `VOICE_CLI`.
 
-### Stdout
+### Stdout — the progress stream
 
-Voice should stream one line per unit of meaningful progress to stdout. Harmony relays these
-as `run:progress` channel events to Aria (rate-limited to 10 Hz). Format is free-form text;
-Harmony does not parse it. Prefix sensitive output with `[voice]` by convention.
+Stdout is a **protocol channel**, not logs: newline-delimited `score.voice-event/v1` JSON, one
+event per line. Harmony tails it and relays each as a `run:progress` channel event (rate-limited
+10 Hz). Event types: `turn` · `text` · `thinking` · `tool_call` · `tool_result` · `status` ·
+`error`. **All human-facing logging goes to stderr.** Voice never writes free-form text to
+stdout.
 
 ### Exit codes
 
-The canonical table lives in [`../../CONTRACT.md`](../../CONTRACT.md); it is mirrored here.
+Canonical table in [`../../CONTRACT.md`](../../CONTRACT.md); mirrored:
 
 | Code | `exit_reason` | Harmony action | Report |
 |------|---------------|----------------|--------|
-| `0` | `completed` | Transition ticket to `reviewing` | required |
-| `1` | `failed` | Schedule retry with backoff; → `blocked` on exhaustion | partial (best-effort) |
-| `2` | `hard-abort` | Transition ticket to `blocked` (no retry) | optional |
-| `3` | `infeasible` | Transition ticket to `specced`; append analysis to `spec.respec_notes` (no retry) | **required** |
-| `4` | `needs-input` | Transition ticket to `awaiting_input`; surface `questions` (no retry) | **required** |
-| `5` | `cancelled` | Reset ticket to `ready` (no retry) | partial (best-effort) |
+| `0` | `completed` | → `reviewing` | required |
+| `1` | `failed` | retry w/ backoff; → `blocked` on exhaustion | partial (best-effort) |
+| `2` | `hard-abort` | → `blocked` (no retry) | optional |
+| `3` | `infeasible` | → `specced`; append to `spec.respec_notes` (no retry) | **required** |
+| `4` | `needs-input` | → `awaiting_input`; surface `questions` (no retry) | **required** |
+| `5` | `cancelled` | reset → `ready` (no retry) | partial (best-effort) |
 
-Voice must always attempt to write a (possibly partial) run report before exiting `1` or `5`.
-For exit `2` (missing env, workspace corruption, CLI not found), a report is optional. For exit
-`3` and `4` the report is **mandatory** and must carry the `infeasibility` object / `questions`
-array respectively (see `report.md`).
-
-Cancellation has a dedicated code (`5`) so Harmony can tell a human `run:cancel` apart from a
-genuine failure (`1`); the two must never share an exit code or the cancel would trigger a retry.
+Voice always attempts a (possibly partial) report before exiting `1` or `5`. For `2` a report
+is optional; for `3`/`4` it is mandatory and carries the `infeasibility` object / `questions`
+array (`report.md`). Cancellation has a dedicated code so a human `run:cancel` is never
+mistaken for a failure (which would retry).
 
 ---
 
 ## Harmony → Voice: ticket context
 
-Voice receives the ticket path via `VOICE_TICKET_PATH`. It should read the YAML and pass
-the following fields to the CLI adapter as context:
-
-- `spec.what` — the task description
-- `spec.acceptance` — acceptance criteria
-- `spec.constraints` — constraints
-- `spec.rework_notes` — history of prior rework cycles (empty on first run)
-- `spec.respec_notes` — history of prior infeasible returns (empty unless the spec was re-shaped)
-- `spec.clarifications` — answered questions from prior `awaiting_input` cycles
-- `pitch` — optional problem framing
-- `notes` — optional free-form notes
-
-The exact prompt assembly is adapter-specific (see `cli-adapters.md`). Voice does not build
-the system prompt directly — that is the adapter's responsibility.
+Voice reads `VOICE_TICKET_PATH` and folds these fields into the model context (see
+`agent-loop.md` for assembly): `spec.what`, `spec.acceptance`, `spec.constraints`,
+`spec.rework_notes`, `spec.respec_notes`, `spec.clarifications`, `pitch`, `notes`. Voice builds
+the context directly (system prompt comes from the role manifest + repo `AGENTS.md`/`CLAUDE.md`,
+not from an adapter).
 
 ---
 
-## Voice → human signaling (infeasible / needs-input)
+## Voice → human signalling (infeasible / needs-input)
 
-The CLI agent has no direct channel to Harmony — it only writes files and exits. To return
-`infeasible` (exit `3`) or `needs-input` (exit `4`), the agent signals Voice, which maps the
-signal to the exit code and the corresponding run-report fields.
+The agent signals a non-completion outcome by **calling a built-in tool**, not by exiting:
 
-The signal mechanism is an adapter-spec decision (see `cli-adapters.md`); two viable forms:
-- a reserved stdout marker line (e.g. `[voice:signal] {"kind":"needs-input", ...}`) that the
-  adapter parses out of the stream, or
-- a `signal.json` the agent writes into the workspace, which Voice reads after the CLI exits.
+- `infeasible({ reason, missing_prerequisites?, suggested_spec_changes? })` → Voice writes the
+  mandatory report (`infeasibility`) and exits `3`.
+- `needs_input({ questions: [...] })` → Voice writes the mandatory report (`questions`) and
+  exits `4`.
 
-On receiving a signal Voice:
-1. Stops treating the CLI's own exit code as authoritative.
-2. Writes the mandatory run report — `infeasibility` for `infeasible`, `questions` for
-   `needs-input`.
-3. Exits `3` or `4` accordingly.
-
-If no signal is present, Voice falls back to the normal completion/failure detection in
-`cli-adapters.md`.
+These built-ins are always present in the loop's tool set (`agent-loop.md`). This replaces the
+old reserved-stdout-marker / `signal.json` scheme with a first-class, schema-validated handback.
 
 ---
 
 ## Cancellation
 
-Harmony sends `SIGTERM` to cancel a running Voice process. Voice should:
-1. Catch `SIGTERM`.
-2. Attempt to write a partial run report (`exit_reason: cancelled`).
-3. Clean up the worktree if possible (best-effort; Harmony will clean up on next restart).
-4. Exit `5` (cancelled). Do **not** exit `1` — that would schedule a retry of the cancelled run.
+Harmony sends `SIGTERM`. Voice should:
+1. Catch `SIGTERM` and stop the loop (abort the in-flight `echo` stream).
+2. Tear down MCP servers.
+3. Write a partial report (`exit_reason: cancelled`).
+4. Best-effort clean the worktree (Harmony also cleans up on restart).
+5. Exit `5` — **not** `1` (which would schedule a retry of a cancelled run).

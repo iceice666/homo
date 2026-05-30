@@ -18,7 +18,10 @@ No Elixir source code exists yet. All design lives in `spec/`. Write spec before
 | `spec/state-model.md` | Two-layer state model: file state (user-visible) + run state (internal) |
 | `spec/swe-method.md` | The "full house" workflow: Kanban + Shape Up + Spec-first + Just-enough |
 | `spec/lifecycle.md` | Ticket state transitions, guards, who can trigger each move |
+| `spec/verify-loop.md` | Optional automated executor↔verifier loop inside `building` |
 | `spec/api.md` | The Phoenix Channels API surface exposed to Aria and future clients |
+
+See also [`BACKLOG.md`](BACKLOG.md) — open questions and deferred work (plain checklist, not a spec).
 
 ## Roles & skills
 

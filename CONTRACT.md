@@ -207,6 +207,13 @@ retained for human inspection while a ticket sits in a human-pending state (`rev
 `awaiting_input`, or `specced` after an infeasible return) and removed on `done`, `blocked`, or
 `hard-abort`.
 
+**Verify-loop exception.** Dispatches inside the executor↔verifier loop (the verifier, and the
+rework executor within the loop) operate on the ticket branch `score/<ticket-id>` **at its current
+tip**, not a base reset — the verifier must see the executor's commits, and in-loop rework
+continues them. This bounded exception applies only within a single ticket's verify loop;
+independent dispatches (new ticket, exit-`1` retry, re-dispatch from a human-pending state) still
+reset to base. See [`harmony/spec/verify-loop.md`](harmony/spec/verify-loop.md).
+
 ---
 
 ## Voice ↔ echo (the LLM client)

@@ -67,11 +67,13 @@ Must exist before shipping:
    the run report path; commit state changes to git for all machine-driven transitions
 4. Phoenix Channels API: the surface defined in `api.md`
 5. Config loader: `~/.score/config.yaml` + per-project `.score/config.yaml`
+6. Verify loop: the optional automated executor↔verifier loop inside `building` (`verify-loop.md`)
 
 Out of scope for v1:
 
 - Multi-machine routing (SSH dispatch)
 - Team / multi-user presence
 - CLI client (deferred — see `api.md`)
-- Auto-dispatch on `ready` (v1 is manual-trigger only)
+- Auto-dispatch on `ready` (v1 is manual-trigger only — the human starts each run). Note this is
+  *distinct* from the verify loop, which orchestrates an already-started run and **is** in v1.
 - Hook conflict resolution (if a project already has post-commit hooks, chaining is TBD)

@@ -63,7 +63,7 @@ spec:
       - "Mode indicator visible without obscuring primary content"
   constraints:
     - "Do not touch status bar layout"
-  rework_notes: []              # appended by the human on each rework cycle (reviewing → ready)
+  rework_notes: []              # appended by the human (reviewing → ready) and by Harmony from verifier findings (verify loop)
   respec_notes: []              # appended by Harmony when a run returns infeasible (building → specced)
   clarifications: []            # Q&A from awaiting_input cycles; carried into the next run
 ```

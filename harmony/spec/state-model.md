@@ -101,6 +101,11 @@ Unclaimed → Claimed/Dispatching → Running → RetryQueued → Released
 | `RetryQueued` | Voice exited non-zero; backoff timer set; will re-dispatch |
 | `Released` | Voice exited 0 or terminal error; git-committed state updated; slot freed |
 
+When the **verify loop** is enabled (`verify-loop.md`), a single `building` ticket may cycle
+through several executor and verifier runs while `Running` — the file state stays `building` and
+the loop position is run-state, not committed. The ticket releases to `reviewing` only on
+convergence (verifier pass) or cycle exhaustion.
+
 ### Exit-code → run-state mapping
 
 Only exit code `1` ever enters `RetryQueued`. Every other code releases the run with a single
@@ -156,6 +161,12 @@ gets a **fresh worktree reset to the base/default-branch tip**. Partial progress
 preserved on-disk across dispatches; it is carried forward only through ticket context
 (`spec.rework_notes`, `spec.respec_notes`, `spec.clarifications`). This makes every run start
 from a defined state. Full setup/cleanup rules live in [`../../voice/spec/workspace.md`](../../voice/spec/workspace.md).
+
+**Verify-loop exception.** Dispatches *inside* the executor↔verifier loop (`verify-loop.md`) — the
+verifier and the in-loop rework executor — build on `score/<id>` **at its current tip**, not a base
+reset, so the verifier can see the executor's commits and rework can continue them. This is a
+bounded exception scoped to one ticket's verify loop; the independent dispatches above are
+unaffected.
 
 ---
 

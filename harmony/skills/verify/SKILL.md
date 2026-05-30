@@ -1,135 +1,56 @@
 ---
-name: yjsp-verify
-description: Run the verifier pass for a yjsp ticket in need-review state. Executes automated acceptance checks, diffs evidence, reviews the code, and writes review.md in the exact format the daemon expects. Use when a ticket has a handoff and needs a logic/correctness gate before human review.
-argument-hint: "<ticket-id>"
+name: verify
+description: Verifier role for a score ticket. Independently checks the executor's work on the ticket branch against the spec and produces a structured pass/fail verdict that Harmony uses to gate human review or loop back to the executor.
 ---
 
-# yjsp-verify
+# verify
 
-Run the full verifier pass on a yjsp ticket and write `review.md`.
+You are the **verifier** in an executor↔verifier loop. The executor has built work on the ticket
+branch; your job is an independent correctness gate before that work reaches the human. You are
+**not** the builder — do not fix issues yourself; report them.
 
-## Usage
+## What you have
 
-```
-/yjsp-verify <ticket-id>
-```
+Voice has assembled your context: the ticket `spec`, the executor's branch diff (`score/<id>`
+against the default branch), and the executor's run report (its mechanical
+`spec.acceptance.automated` results). Use your tools to read the diff and re-run checks as needed.
 
-## What This Does
+## What you check
 
-Reads the ticket spec, runs automated checks, diffs evidence, reviews the branch diff, and
-writes `.yjsp/tickets/<id>/review.md`. The daemon watches for this file and auto-transitions
-the ticket to `need-human` when it appears.
-
-## Workflow
-
-### 1. Load the ticket
-
-Read `.yjsp/tickets/<id>.yaml`. Confirm state is `need-review` or `verifying`.
-Read `.yjsp/tickets/<id>/handoff.md`.
-
-If either file is missing, stop and report the gap.
-
-### 2. Run automated acceptance checks
-
-Execute each command in `spec.acceptance.automated` from the project root.
-Capture: command, exit code, stdout (last 20 lines), stderr (last 10 lines).
-
-Record each as `pass` (exit 0) or `fail` (non-zero).
-
-### 3. Diff the evidence
-
-List files under `.yjsp/tickets/<id>/evidence/`.
-Compare against `spec.evidence_required`.
-
-For each required item: present (✓) or missing (✗).
-
-### 4. Review the diff
-
-Read the diff on branch `yjsp/<id>` against the default branch.
-
-**First, check spec compliance:**
-- Does the implementation match `spec.what`?
+### 1. Spec compliance
+- Does the implementation satisfy `spec.what`?
 - Does anything violate `spec.constraints`?
-- If `spec.rework_notes` is non-empty, were all previous issues addressed?
-- Read `handoff.md` deviations — if the agent went off-script, assess the risk.
+- If `spec.rework_notes` is non-empty, were the listed issues addressed?
 
-**Then review for blocking issues only** across these dimensions.
-Do not nitpick style or naming. Flag only what is `blocking` (must fix), `warning` (should fix),
-or `note` (observation, no action required).
+### 2. Mechanical acceptance
+- Confirm the executor's `spec.acceptance.automated` results; re-run if in doubt.
+- A failing automated check is a blocking issue.
 
-**Security**
-- Injections (SQL, command, path traversal)
-- Auth/authz gaps — missing checks, privilege escalation
-- Secrets or credentials hardcoded in source
-- Unsafe deserialization or eval
+### 3. Blocking issues only
+Review the diff for issues that block correctness — do **not** nitpick style or naming. Classify
+each as `blocking` (must fix), `warning` (should fix), or `note` (observation).
 
-**Correctness**
-- Edge cases not handled: empty input, null/nil, integer overflow, empty collections
-- Race conditions or shared mutable state without synchronisation
-- Error paths that silently swallow failures
-- Off-by-one, wrong comparison operators
+- **Security** — injections (SQL / command / path traversal), auth/authz gaps, hardcoded secrets,
+  unsafe deserialization or eval.
+- **Correctness** — unhandled edge cases (empty / null / overflow / empty collections), races on
+  shared mutable state, silently swallowed errors, off-by-one or wrong operators.
+- **Performance** (only if a hot path or clearly O(n²)+) — N+1 queries, unbounded loops, leaked
+  resources.
+- **Contracts** — public API or data-format changes not covered by `spec.what`.
 
-**Performance** (flag only if in a hot path or clearly O(n²)+)
-- N+1 queries or unbounded loops over large collections
-- Missing indexes on queried fields
-- Memory leaks — resources opened but not closed
+## Your verdict
 
-**Contracts**
-- Public API or interface changes not covered by `spec.what`
-- Breaking changes to data formats or serialisation
+End your run with a structured verdict (Voice records it in the run report — see
+`../../../voice/spec/report.md`):
 
-### 5. Write review.md
+- **pass** — all automated checks pass **and** no `blocking` issues. Warnings and notes do not
+  block.
+- **fail** — any automated check fails **or** any `blocking` issue. List the must-fix items
+  specifically; they become the executor's `spec.rework_notes`.
 
-Write to `.yjsp/tickets/<id>/review.md` using exactly this structure:
+When in doubt, **fail** — a false negative costs one loop iteration; a false positive ships a bug
+past the only automated gate.
 
-```markdown
-## Automated checks
-
-| Command | Result | Notes |
-|---------|--------|-------|
-| `pnpm test` | ✓ pass | |
-| `pnpm e2e mode-switching` | ✗ fail | exit 1 — "cannot find element .mode-indicator" |
-
-## Evidence
-
-| Required | Present |
-|----------|---------|
-| screenshot_matrix | ✓ |
-| key_sequence_replay | ✗ missing |
-
-## Code review
-
-[blocking] <file>:<line> — <issue description>
-[warning]  <file>:<line> — <issue description>
-[note]     <file>:<line> — <observation>
-
-(none) if clean.
-
-## Verdict
-
-pass | fail
-
-### If fail — must fix before approval:
-- <specific actionable item>
-- <specific actionable item>
-```
-
-Do not add commentary outside this structure. The format is parsed by the human reviewing it.
-
-### 6. Update ticket state
-
-After writing `review.md`:
-- Update `state:` in the ticket YAML to `need-human`.
-- The daemon will pick this up. If running without the daemon, print:
-  `✓ review.md written — run \`yjsp approve <id>\` or \`yjsp rework <id> "<note>"\``
-
-## Verdict rules
-
-**pass** — all automated checks pass AND no blocking code review issues AND all required
-evidence is present. Warnings and notes do not block.
-
-**fail** — any automated check fails OR any blocking code review issue OR any required
-evidence is missing.
-
-When in doubt, fail. A false negative wastes one iteration. A false positive wastes your
-taste-review slot.
+Harmony reads your verdict from the report: **pass** surfaces the ticket to the human at
+`reviewing`; **fail** appends your findings to `spec.rework_notes` and re-dispatches the executor
+on the branch (`../../spec/verify-loop.md`).

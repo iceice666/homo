@@ -34,6 +34,16 @@ re-shapes the spec rather than re-running it unchanged; `needs-input` parks the 
 human cancel does not trigger a retry. See `state-model.md` for the full exit-code → run-state
 mapping and [`../../CONTRACT.md`](../../CONTRACT.md) for the canonical exit-code table.
 
+### Verify loop (optional)
+
+When the verify loop is enabled for a ticket (`verify-loop.md`), an executor's successful exit does
+**not** go straight to `reviewing`. Harmony instead dispatches a verifier run against the ticket
+branch; the file state stays `building` throughout. On a verifier **pass** (or after
+`max_verify_cycles`) the ticket moves `building → reviewing`; on a **fail** Harmony appends the
+verifier's findings to `spec.rework_notes` and re-dispatches the executor on the branch — all
+without leaving `building`. With the loop disabled, `building → reviewing` on executor exit `0` is
+the direct path above.
+
 ---
 
 ## `blocked_by` enforcement
